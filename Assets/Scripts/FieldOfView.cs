@@ -77,7 +77,7 @@ public class FieldOfView : MonoBehaviour
             ViewCastInfo newViewCast = ViewCast(angle);
             if (i > 0)
             {
-                if (oldViewCast.hit != newViewCast.hit)
+                if (oldViewCast.hit != newViewCast.hit || oldViewCast.target != newViewCast.target)
                 {
                     EdgeInfo edge = FindEdge(oldViewCast, newViewCast);
                     if (edge.pointA != Vector3.zero)
@@ -129,12 +129,12 @@ public class FieldOfView : MonoBehaviour
             float angle = (minAngle + maxAngle) / 2;
             ViewCastInfo newViewCast = ViewCast(angle);
 
-            if (newViewCast.hit == minViewCast.hit)
+            if (newViewCast.hit == minViewCast.hit && newViewCast.target == minViewCast.target)
             {
                 minAngle = newViewCast.angle;
                 minPoint = newViewCast.point;
             }
-            else if (newViewCast.hit == maxViewCast.hit)
+            else if (newViewCast.hit == maxViewCast.hit && newViewCast.target == maxViewCast.target)
             {
                 maxAngle = newViewCast.angle;
                 maxPoint = newViewCast.point;
