@@ -29,7 +29,7 @@ public class FieldOfView : MonoBehaviour
         StartCoroutine("FindTargetWithDelay", 0.2f);
     }
 
-    private void Update()
+    private void LateUpdate()
     {
         DrawFieldOfView();
     }
