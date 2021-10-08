@@ -15,7 +15,9 @@ public class FieldOfView : MonoBehaviour
     [HideInInspector]
     public List<Transform> visibleTargets = new List<Transform>();
 
-    public float MeshResolution;
+    public float meshResolution;
+    public float edgeResolveIterations;
+
 
     public MeshFilter viewMeshFilter;
     Mesh viewMesh;
@@ -64,16 +66,32 @@ public class FieldOfView : MonoBehaviour
 
     void DrawFieldOfView()
     {
-        int stepCount = Mathf.RoundToInt(viewAngle * MeshResolution);
+        int stepCount = Mathf.RoundToInt(viewAngle * meshResolution);
         float stepAngleSize = viewAngle / stepCount;
         List<Vector3> viewPoints = new List<Vector3>();
+        ViewCastInfo oldViewCast = new ViewCastInfo();
 
         for (int i = 0; i <= stepCount; i++)
         {
             float angle = transform.eulerAngles.y - viewAngle / 2 + stepAngleSize * i;
             ViewCastInfo newViewCast = ViewCast(angle);
+            if (i > 0)
+            {
+                if (oldViewCast.hit != newViewCast.hit)
+                {
+                    EdgeInfo edge = FindEdge(oldViewCast, newViewCast);
+                    if (edge.pointA != Vector3.zero)
+                    {
+                        viewPoints.Add(edge.pointA);
+                    }
+                    if (edge.pointB != Vector3.zero)
+                    {
+                        viewPoints.Add(edge.pointB);
+                    }
+                }
+            }
             viewPoints.Add(newViewCast.point);
-            //Debug.DrawLine(transform.position, transform.position + DirFromAngle(angle, true) * viewRadius, Color.red);
+            oldViewCast = newViewCast;
         }
 
         int vertexCount = viewPoints.Count + 1;
@@ -90,6 +108,7 @@ public class FieldOfView : MonoBehaviour
                 triangles[i * 3 + 1] = i + 1;
                 triangles[i * 3 + 2] = i + 2;
             }
+            Debug.DrawLine(transform.position, viewPoints[i], Color.red);
         }
 
         viewMesh.Clear();
@@ -98,17 +117,44 @@ public class FieldOfView : MonoBehaviour
         viewMesh.RecalculateNormals();
     }
 
+    EdgeInfo FindEdge(ViewCastInfo minViewCast, ViewCastInfo maxViewCast)
+    {
+        float minAngle = minViewCast.angle;
+        float maxAngle = maxViewCast.angle;
+        Vector3 minPoint = minViewCast.point;
+        Vector3 maxPoint = maxViewCast.point;
+
+        for (int i = 0; i < edgeResolveIterations; i++)
+        {
+            float angle = (minAngle + maxAngle) / 2;
+            ViewCastInfo newViewCast = ViewCast(angle);
+
+            if (newViewCast.hit == minViewCast.hit)
+            {
+                minAngle = newViewCast.angle;
+                minPoint = newViewCast.point;
+            }
+            else if (newViewCast.hit == maxViewCast.hit)
+            {
+                maxAngle = newViewCast.angle;
+                maxPoint = newViewCast.point;
+            }
+        }
+
+        return new EdgeInfo(minPoint, maxPoint);
+    }
+
     ViewCastInfo ViewCast(float globalAngle)
     {
         Vector3 dir = DirFromAngle(globalAngle, true);
         RaycastHit hit;
         if (Physics.Raycast(transform.position, dir, out hit, viewRadius, obstacleMask))
         {
-            return new ViewCastInfo(true, hit.point, hit.distance, globalAngle);
+            return new ViewCastInfo(true, hit.point, hit.distance, globalAngle, hit.transform.gameObject);
         }
         else
         {
-            return new ViewCastInfo(false, transform.position + dir * viewRadius, viewRadius, globalAngle);
+            return new ViewCastInfo(false, transform.position + dir * viewRadius, viewRadius, globalAngle, null);
         }
     }
 
@@ -128,13 +174,27 @@ public class FieldOfView : MonoBehaviour
         public Vector3 point;
         public float dst;
         public float angle;
+        public GameObject target;
 
-        public ViewCastInfo(bool _hit, Vector3 _point, float _dst, float _angle)
+        public ViewCastInfo(bool _hit, Vector3 _point, float _dst, float _angle, GameObject _target)
         {
             hit = _hit;
             point = _point;
             dst = _dst;
             angle = _angle;
+            target = _target;
+        }
+    }
+
+    public struct EdgeInfo
+    {
+        public Vector3 pointA;
+        public Vector3 pointB;
+
+        public EdgeInfo(Vector3 _pointA, Vector3 _pointB)
+        {
+            pointA = _pointA;
+            pointB = _pointB;
         }
     }
 }
